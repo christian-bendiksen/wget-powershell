@@ -10,7 +10,7 @@ try {
         $output = [System.IO.Path]::GetFileName($uri.AbsolutePath)
 
         if (-not $output -or $output -eq "") {
-            throw "Could not find a valid filename in the URL. Specify -f manually."
+            throw "Could not find a valid filename in the URL. Specify -o manually."
         }
     }
 
