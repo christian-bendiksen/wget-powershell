@@ -1,12 +1,35 @@
 param (
     [Alias("u")][Parameter(Mandatory = $true)][string]$url,
-    [Alias("o")][string]$output
+    [Alias("o")][string]$output,
+    [Alias("q")][switch]$Quiet,
+    [Alias("f")][switch]$Force
 )
 
+function Write-Log {
+    param (
+        [string]$Message,
+        [string]$Level = "Info"
+    )
+
+    if (-not $Quiet) {
+        switch ($Level) {
+            "Info" { Write-Host $Message }
+            "Warning" { Write-Warning $Message }
+            "Error" { Write-Error $Message }
+        }
+    }
+}
+
 try {
+    try {
+            $uri = [System.Uri]$url
+        } catch {
+            Write-Log "Invalid URL: $url" "Error"
+            exit 2
+        }
+        
     if (-not $output -or $output.Trim() -eq "") {
         # Try to get filename from URL
-        $uri = [System.Uri]$url
         $output = [System.IO.Path]::GetFileName($uri.AbsolutePath)
 
         if (-not $output -or $output -eq "") {
@@ -14,13 +37,13 @@ try {
         }
     }
 
-    Write-Host "Downloading from: $url"
-    Write-Host "Saving as: $output"
+    Write-Log "Downloading from: $url"
+    Write-Log "Saving as: $output"
 
-    if (Test-Path $output) {
+    if ((Test-Path $output) -and -not $Force) {
         $choice = Read-Host "'$output' Already exists. Do you want to overwrite it? (y/n)"
         if ($choice -ne 'y') {
-            Write-Host "Aborting."
+            Write-Log "Aborting."
             exit 0
         }
     }
@@ -31,11 +54,11 @@ try {
         try {
             $attempt++
             Invoke-WebRequest -Uri $url -Outfile $output -ErrorAction stop -Headers @{ "User-Agent" = "Mozilla/5.0 (PowerShell-Wget)"}
-            Write-Host "Downloading complete: $output"
+            Write-Log "Downloading complete: $output"
             break
         } catch {
             if ($attempt -lt $maxRetries) {
-                Write-Warning "Error during download, retrying ($attempt)"
+                Write-Log "Error during download, retrying ($attempt)" "Warning"
                 Start-Sleep -Seconds 2
             } else {
                 throw
@@ -45,7 +68,7 @@ try {
 
 }
 catch {
-    Write-Error "Download failed: $($_.Exception.Message)"
+    Write-Log "Download failed: $($_.Exception.Message)" "Error"
     exit 1
 }
 
